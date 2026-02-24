@@ -106,3 +106,12 @@ mvn spring-boot:run
 
 - 项目使用内存数据存储（示例用途），重启后数据会丢失。
 - 生产环境建议接入数据库并实现密码加密、权限控制等能力。
+
+
+## Apifox 导入
+
+已提供可直接导入的 OpenAPI 文件：
+
+- `docs/apifox-openapi.json`
+
+在 Apifox 中选择 **导入 -> OpenAPI/Swagger**，上传该文件即可生成全部接口（含注册、登录、商品、购物车、订单、支付、退款）。
