@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品展示</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { border: 1px solid #ddd; padding: 16px; margin-bottom: 16px; border-radius: 8px; }
+        .product { margin: 10px 0; padding: 10px; background: #f5f7fb; border-radius: 6px; }
+        button { margin-left: 8px; }
+        input { margin-right: 8px; }
+        pre { background: #1f2937; color: #fff; padding: 10px; border-radius: 6px; overflow: auto; }
+    </style>
+</head>
+<body>
+<h1>商品展示（静态页面）</h1>
+
+<div class="section">
+    <h2>1. 注册</h2>
+    <input id="registerUsername" placeholder="用户名">
+    <input id="registerPassword" type="password" placeholder="密码">
+    <button onclick="register()">注册</button>
+</div>
+
+<div class="section">
+    <h2>2. 登录</h2>
+    <input id="loginUsername" placeholder="用户名">
+    <input id="loginPassword" type="password" placeholder="密码">
+    <button onclick="login()">登录</button>
+</div>
+
+<div class="section">
+    <h2>3. 商品列表</h2>
+    <button onclick="loadProducts()">刷新商品</button>
+    <div id="products"></div>
+</div>
+
+<div class="section">
+    <h2>4. 购物车</h2>
+    <button onclick="loadCart()">刷新购物车</button>
+    <pre id="cartOutput"></pre>
+</div>
+
+<div class="section">
+    <h2>5. 订单</h2>
+    <button onclick="createOrder()">提交订单（进入待付款并扣库存）</button>
+    <button onclick="loadOrders()">查看订单</button>
+    <br><br>
+    <input id="orderIdInput" type="number" placeholder="订单ID" min="1">
+    <button onclick="payOrder()">支付订单</button>
+    <button onclick="refundOrder()">退款订单（回退库存）</button>
+    <pre id="orderOutput"></pre>
+</div>
+
+<pre id="message"></pre>
+
+<script>
+    function showMessage(data) {
+        document.getElementById('message').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function request(url, options = {}) {
+        const response = await fetch(url, options);
+        const data = await response.json();
+        if (!response.ok) {
+            throw data;
+        }
+        return data;
+    }
+
+    async function register() {
+        try {
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const data = await request('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            showMessage(data);
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function login() {
+        try {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const data = await request('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            showMessage(data);
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function loadProducts() {
+        try {
+            const products = await request('/api/products');
+            const container = document.getElementById('products');
+            container.innerHTML = '';
+
+            products.forEach(product => {
+                const div = document.createElement('div');
+                div.className = 'product';
+                div.innerHTML = `
+                    <strong>${product.name}</strong> - ¥${product.price} - 库存: ${product.stock}<br>
+                    <small>${product.description}</small><br>
+                    数量: <input id="qty-${product.id}" type="number" min="1" value="1" style="width: 60px;">
+                    <button onclick="addToCart(${product.id})">加入购物车</button>
+                `;
+                container.appendChild(div);
+            });
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function addToCart(productId) {
+        try {
+            const quantity = Number(document.getElementById(`qty-${productId}`).value);
+            const data = await request('/api/cart/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({productId, quantity})
+            });
+            showMessage(data);
+            await loadCart();
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function loadCart() {
+        try {
+            const data = await request('/api/cart');
+            document.getElementById('cartOutput').textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function createOrder() {
+        try {
+            const data = await request('/api/orders', {method: 'POST'});
+            document.getElementById('orderOutput').textContent = JSON.stringify(data, null, 2);
+            await loadCart();
+            await loadProducts();
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function loadOrders() {
+        try {
+            const data = await request('/api/orders');
+            document.getElementById('orderOutput').textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function payOrder() {
+        try {
+            const orderId = document.getElementById('orderIdInput').value;
+            const data = await request(`/api/orders/${orderId}/pay`, {method: 'POST'});
+            showMessage(data);
+            await loadOrders();
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    async function refundOrder() {
+        try {
+            const orderId = document.getElementById('orderIdInput').value;
+            const data = await request(`/api/orders/${orderId}/refund`, {method: 'POST'});
+            showMessage(data);
+            await loadOrders();
+            await loadProducts();
+        } catch (e) {
+            showMessage(e);
+        }
+    }
+
+    loadProducts();
+</script>
+</body>
+</html>
